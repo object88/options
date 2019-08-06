@@ -1,0 +1,70 @@
+{{ $instanceName := .InstanceName }}
+{{ $structName := .StructName }}
+package {{ .Package }}
+
+// Generated package; do not edit
+
+import (
+	"errors"
+	"reflect"
+
+	"github.com/object88/options"
+)
+
+{{ range .StructMembers }}
+// Set{{ .OptionNameUpper }} generates an options.Option for use with
+// `Apply` to set {{ $structName }}.{{ .OptionName }}
+func ({{ $instanceName }} *{{ $structName }}) Set{{ .OptionNameUpper }}({{ .OptionNameLower }} {{ .OptionType }}) options.Option {
+	{{ $instanceName }}o := {{ $structName }}Opt{
+		F: func({{ $instanceName }} *{{ $structName }}) error {
+			{{ $instanceName }}.{{ .OptionName }} = {{ .OptionNameLower }}
+			return nil
+		},
+	}
+	return &{{ $instanceName }}o
+}
+
+{{ end -}}
+
+// Apply accepts a number of Option funcs and uses them to modify the supplied
+// `*{{ $structName }}`.
+func ({{ $instanceName }} *{{ $structName }}) Apply(opts ...options.Option) error {
+	for _, opt := range opts {
+		if reflect.TypeOf({{ $structName }}{}) == opt.TargetType() {
+			if err := opt.Apply({{ $instanceName }}); err != nil {
+				return err
+			}
+		} else {
+			sf, ok := reflect.TypeOf(*{{ $instanceName }}).FieldByName(opt.TargetType().Name())
+			if !ok {
+				return errors.New("Missing")
+			}
+			m, ok := reflect.PtrTo(sf.Type).MethodByName("Apply")
+			if !ok {
+				return errors.New("Missing apply")
+			}
+			m.Func.CallSlice(
+				[]reflect.Value{
+					reflect.ValueOf({{ $instanceName }}).Elem().FieldByName(opt.TargetType().Name()).Addr(),
+					reflect.ValueOf([]options.Option{opt}),
+				})
+		}
+	}
+	return nil
+}
+
+type {{ $structName }}Opt struct {
+	F func({{ $instanceName }} *{{ $structName }}) error
+}
+
+func ({{ $instanceName }}o *{{ $structName }}Opt) TargetType() reflect.Type {
+	return reflect.TypeOf({{ $structName }}{})
+}
+
+func ({{ $instanceName }}o *{{ $structName }}Opt) Apply(target interface{}) error {
+	{{ $instanceName }}, ok := target.(*{{ $structName }})
+	if !ok {
+		return errors.New("Target is not *{{ $structName }}")
+	}
+	return {{ $instanceName }}o.F({{ $instanceName }})
+}

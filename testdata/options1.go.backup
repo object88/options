@@ -1,0 +1,92 @@
+package shipyard
+
+import (
+	"reflect"
+	"time"
+
+	"github.com/pkg/errors"
+	"github.com/providenceinnovation/devex/log"
+	"github.com/providenceinnovation/devex/shipyard/datadog"
+)
+
+// MaintenanceOptions is a collection of options related to `dredge` and
+// `sweep`
+type MaintenanceOptions struct {
+	Datadog *datadog.Reporter
+	DryRun  bool
+	Logger  *log.Log
+	Timeout time.Duration
+}
+
+// NewMaintenanceOptions returns a new instance of a MaintenanceOptions struct
+// with reasonable defaults set
+func NewMaintenanceOptions() MaintenanceOptions {
+	return MaintenanceOptions{
+		Timeout: 30 * time.Second,
+	}
+}
+
+// Apply will execution the option funcs
+func (mo *MaintenanceOptions) Apply(options ...MaintenanceOption) error {
+	for _, opt := range options {
+		if err := opt.Apply(mo); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// MaintenanceOption is a function that can handle configuration
+type MaintenanceOption interface {
+	TargetType() reflect.Type
+	Apply(target interface{}) error
+}
+
+type MaintenanceOpt struct {
+	F func(mo *MaintenanceOptions) error
+}
+
+func (mopt *MaintenanceOpt) TargetType() reflect.Type {
+	return reflect.TypeOf(MaintenanceOptions{})
+}
+
+func (mopt *MaintenanceOpt) Apply(target interface{}) error {
+	mo, ok := target.(*MaintenanceOptions)
+	if !ok {
+		return errors.New("Target is not *MaintenanceOptions")
+	}
+	return mopt.F(mo)
+}
+
+// AssignDatadogReporter will attach a DataDog reporter
+func AssignDatadogReporter(reporter *datadog.Reporter) MaintenanceOption {
+	mopt := MaintenanceOpt{
+		F: func(mo *MaintenanceOptions) error {
+			mo.Datadog = reporter
+			return nil
+		},
+	}
+	return &mopt
+}
+
+// AssignLogOption will attach a logger to the Dredge struct
+func AssignLogOption(logger *log.Log) MaintenanceOption {
+	mopt := MaintenanceOpt{
+		F: func(mo *MaintenanceOptions) error {
+			mo.Logger = logger
+			return nil
+		},
+	}
+	return &mopt
+}
+
+// SetDryRunOption will set the dry-run option
+func SetDryRunOption(dryRun bool) MaintenanceOption {
+	mopt := MaintenanceOpt{
+		F: func(mo *MaintenanceOptions) error {
+			mo.DryRun = dryRun
+			return nil
+		},
+	}
+	return &mopt
+}

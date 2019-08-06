@@ -1,0 +1,76 @@
+package lighthouse
+
+import (
+	"errors"
+	"reflect"
+
+	"github.com/providenceinnovation/devex/shipyard"
+)
+
+// MaintenanceOptions is a collection of options related to `dredge` and
+// `sweep`
+type MaintenanceOptions struct {
+	shipyard.MaintenanceOptions
+	repoOverrides []RepositoryMapEntry
+}
+
+// NewMaintenanceOptions returns a new instance of a MaintenanceOptions struct
+// with reasonable defaults set
+func NewMaintenanceOptions() MaintenanceOptions {
+	return MaintenanceOptions{
+		MaintenanceOptions: shipyard.NewMaintenanceOptions(),
+	}
+}
+
+// Apply will execution the option funcs
+func (mo *MaintenanceOptions) Apply(options ...shipyard.MaintenanceOption) error {
+	for _, opt := range options {
+		if reflect.TypeOf(MaintenanceOptions{}) == opt.TargetType() {
+			if err := opt.Apply(mo); err != nil {
+				return err
+			}
+		} else {
+			sf, ok := reflect.TypeOf(*mo).FieldByName(opt.TargetType().Name())
+			if !ok {
+				return errors.New("Missing")
+			}
+			m, ok := reflect.PtrTo(sf.Type).MethodByName("Apply")
+			if !ok {
+				return errors.New("Missing apply")
+			}
+			m.Func.CallSlice(
+				[]reflect.Value{
+					reflect.ValueOf(mo).Elem().FieldByName(opt.TargetType().Name()).Addr(),
+					reflect.ValueOf([]shipyard.MaintenanceOption{opt}),
+				})
+		}
+	}
+	return nil
+}
+
+type MaintenanceOpt struct {
+	F func(mo *MaintenanceOptions) error
+}
+
+func (mopt *MaintenanceOpt) TargetType() reflect.Type {
+	return reflect.TypeOf(MaintenanceOptions{})
+}
+
+func (mopt *MaintenanceOpt) Apply(target interface{}) error {
+	mo, ok := target.(*MaintenanceOptions)
+	if !ok {
+		return errors.New("Target is not *MaintenanceOptions")
+	}
+	return mopt.F(mo)
+}
+
+// SetRepositoryOverridesOption will assign any repo overrides
+func SetRepositoryOverridesOption(overrides []RepositoryMapEntry) shipyard.MaintenanceOption {
+	mopt := MaintenanceOpt{
+		F: func(mo *MaintenanceOptions) error {
+			mo.repoOverrides = overrides
+			return nil
+		},
+	}
+	return &mopt
+}
