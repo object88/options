@@ -1,8 +1,11 @@
-{{ $instanceName := .InstanceName }}
-{{ $structName := .StructName }}
+{{- $instanceName := .InstanceName -}}
+{{- $structName := .StructName -}}
 package {{ .Package }}
 
-// Generated package; do not edit
+// Generated package
+// Do NOT edit; the code in this file can be recreated using the `options` tool
+// at any time.
+// File generated at {{ .Now }}
 
 import (
 	"errors"

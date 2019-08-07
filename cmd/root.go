@@ -71,8 +71,6 @@ func (rc *rootCommand) execute(cmd *cobra.Command, args []string) error {
 		parsedArgs[k].StructName = subs[1]
 	}
 
-	fmt.Printf("Parsing %d struct\n", len(parsedArgs))
-
 	for _, parsedArg := range parsedArgs {
 		absPath, err := filepath.Abs(parsedArg.Source)
 		if err != nil {
@@ -98,7 +96,6 @@ func (rc *rootCommand) execute(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("target file: '%s'\n", absPath)
 		err = g.Generate(parsedArg, f)
 		if err != nil {
 			return err

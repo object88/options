@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -82,9 +83,9 @@ func (g *Generator) Generate(arg Arg, writer io.Writer) error {
 	if err != nil {
 		return errors.Wrapf(err, "Package '%s' does not contain struct '%s'", p.Name(), arg.StructName)
 	}
-	g.logger.Infof("Have struct:\n%#v\n", s)
 
 	data := &templates.Data{
+		Now:           time.Now().Format("2006-01-02 15:04:05.000 MST"),
 		Package:       p.Name(),
 		InstanceName:  createInstanceName(arg.StructName),
 		StructName:    arg.StructName,
